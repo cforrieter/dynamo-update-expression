@@ -227,6 +227,20 @@ function truncate(name, maxLen = maxAttrNameLen - 1, aliasContext = { truncatedA
   }
 }
 
+function generateAttrAlias(prefix, attrName, maxAttrNameLen, aliasContext, nameMap) {
+  let baseAttrNameAlias = `#${truncate(_.camelCase([prefix, attrName]), maxAttrNameLen - 1, aliasContext)}`
+  let attrNameAlias = baseAttrNameAlias
+
+  let counter = 0
+  while (nameMap[attrNameAlias] && nameMap[attrNameAlias] !== attrName) {
+    attrNameAlias = `${baseAttrNameAlias}_${counter}`
+    counter++
+  }
+
+  nameMap[attrNameAlias] = attrName
+  return attrNameAlias
+}
+
 function alias(node, nameMap, valueMap, aliasContext = {}) {
   const { prefix = '' } = aliasContext
   const [dollarSign, ...parts] = node.path
@@ -244,9 +258,8 @@ function alias(node, nameMap, valueMap, aliasContext = {}) {
       if (regex.isInvalidIdentifierName.test(part)) {
         attrName = part.replace(regex.invalidIdentifierName, '$1') // '["x.y"]' => 'x.y'
         checkLimit(attrName)
-        attrNameAlias = `#${truncate(_.camelCase([prefix, attrName]), maxAttrNameLen - 1, aliasContext)}` // #xY
-        pathPart = attrNameAlias // #xY
-        nameMap[attrNameAlias] = attrName
+        attrNameAlias = generateAttrAlias(prefix, attrName, maxAttrNameLen, aliasContext, nameMap)
+        pathPart = attrNameAlias
       } else if (!isNaN(part)) {
         // const [whole, _attrName, subscript] = regex.isNumericSubscript$.exec(part); // relatedItems[1]
         // attrName = _attrName; //relatedItems
@@ -257,9 +270,8 @@ function alias(node, nameMap, valueMap, aliasContext = {}) {
       } else {
         attrName = part
         checkLimit(attrName)
-        attrNameAlias = `#${truncate(_.camelCase([prefix, attrName]), maxAttrNameLen - 1, aliasContext)}`
+        attrNameAlias = generateAttrAlias(prefix, attrName, maxAttrNameLen, aliasContext, nameMap)
         pathPart = attrNameAlias
-        nameMap[attrNameAlias] = attrName
       }
 
       return pathPart
@@ -271,6 +283,7 @@ function alias(node, nameMap, valueMap, aliasContext = {}) {
     valueMap[valueAlias] = value
     value = valueAlias
   }
+
   return {
     path: pathParts.join('.').replace(/\.\[/g, '['),
     value,
